@@ -1,8 +1,15 @@
 import * as vscode from 'vscode';
 import { TestPlaygroundProvider } from './testPlaygroundProvider';
 import { generateTests } from './aiService';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
+	// Load environment variables from .env file in extension directory
+	const envPath = path.join(context.extensionPath, '.env');
+	dotenv.config({ path: envPath });
+	console.log('Loading .env from:', envPath);
+	
 	console.log('Extension "just-play" is now active!');
 	console.log('Extension URI:', context.extensionUri.toString());
 

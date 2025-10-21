@@ -12,13 +12,14 @@ export async function generateTests(
 	includeContext: boolean
 ): Promise<TestGenerationResult> {
 	const config = vscode.workspace.getConfiguration('just-play');
-	const apiKey = config.get<string>('apiKey');
+	// Try environment variable first, then fall back to VS Code settings
+	const apiKey = process.env.ANTHROPIC_API_KEY || config.get<string>('apiKey');
 	const model = config.get<string>('model') || 'claude-3-5-haiku-20241022';
 
 	if (!apiKey) {
 		return {
 			tests: '',
-			error: 'API key not configured. Please set your Anthropic API key in settings.'
+			error: 'API key not configured. Please set ANTHROPIC_API_KEY in .env file or in VS Code settings.'
 		};
 	}
 
