@@ -149,6 +149,23 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			display: flex;
 			flex-direction: column;
 			height: 100%;
+			position: relative;
+		}
+		.expand-btn {
+			position: absolute;
+			top: 8px;
+			right: 8px;
+			background-color: var(--vscode-button-secondaryBackground);
+			color: var(--vscode-button-secondaryForeground);
+			border: none;
+			padding: 6px 12px;
+			cursor: pointer;
+			border-radius: 2px;
+			font-size: 12px;
+			z-index: 10;
+		}
+		.expand-btn:hover {
+			background-color: var(--vscode-button-secondaryHoverBackground);
 		}
 		button {
 			background-color: var(--vscode-button-background);
@@ -316,10 +333,131 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			0% { transform: rotate(0deg); }
 			100% { transform: rotate(360deg); }
 		}
+		/* Modal styles */
+		.modal-overlay {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background-color: rgba(0, 0, 0, 0.7);
+			z-index: 1000;
+			padding: 20px;
+		}
+		.modal-overlay.visible {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.modal-content {
+			background-color: var(--vscode-editor-background);
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 6px;
+			width: 95%;
+			height: 90%;
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
+		.modal-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px 16px;
+			border-bottom: 1px solid var(--vscode-panel-border);
+		}
+		.modal-title {
+			font-size: 14px;
+			font-weight: 600;
+			color: var(--vscode-foreground);
+		}
+		.modal-close {
+			background: transparent;
+			border: none;
+			color: var(--vscode-foreground);
+			font-size: 20px;
+			cursor: pointer;
+			padding: 0;
+			width: 24px;
+			height: 24px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.modal-close:hover {
+			background-color: var(--vscode-toolbar-hoverBackground);
+			border-radius: 3px;
+		}
+		.modal-body {
+			flex: 1;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 16px;
+			padding: 16px;
+			overflow: hidden;
+		}
+		.modal-column {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			overflow-y: auto;
+		}
+		.modal-section {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+		.modal-section-label {
+			font-weight: 600;
+			font-size: 12px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: var(--vscode-descriptionForeground);
+		}
+		.modal-code-editor {
+			background-color: #282c34;
+			color: #abb2bf;
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 4px;
+			padding: 12px;
+			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+			font-size: 13px;
+			line-height: 1.6;
+			overflow: auto;
+			white-space: pre;
+			min-height: 300px;
+		}
+		.modal-code-editor code {
+			background: transparent !important;
+			padding: 0 !important;
+		}
+		.modal-code-editor .hljs {
+			background: transparent !important;
+		}
+		.modal-output {
+			background-color: #282c34;
+			color: #abb2bf;
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 4px;
+			padding: 12px;
+			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+			font-size: 13px;
+			line-height: 1.6;
+			overflow: auto;
+			white-space: pre-wrap;
+			min-height: 200px;
+			max-height: 400px;
+		}
+		.modal-output .hljs {
+			background: transparent !important;
+			padding: 0 !important;
+		}
 	</style>
 </head>
 <body>
 	<div class="container">
+		<button class="expand-btn" id="expandBtn" style="display: none;">⤢ Expand</button>
 		<div class="content" id="content">
 			<div class="welcome">
 				<h3>Test Playground</h3>
@@ -329,11 +467,45 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		</div>
 	</div>
 
+	<div class="modal-overlay" id="modalOverlay">
+		<div class="modal-content">
+			<div class="modal-header">
+				<div class="modal-title">Expanded View</div>
+				<button class="modal-close" id="modalClose">×</button>
+			</div>
+			<div class="modal-body">
+				<div class="modal-column">
+					<div class="modal-section">
+						<div class="modal-section-label">Code to Test, with AI Modifications</div>
+						<pre class="modal-code-editor" id="modalSetup"><code class="language-typescript"></code></pre>
+					</div>
+				</div>
+				<div class="modal-column">
+					<div class="modal-section">
+						<div class="modal-section-label">Test Scenarios</div>
+						<pre class="modal-code-editor" id="modalTests"><code class="language-typescript"></code></pre>
+					</div>
+					<div class="modal-section">
+						<div class="modal-section-label">Output</div>
+						<div class="modal-output" id="modalOutput"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<script>
 		const vscode = acquireVsCodeApi();
 		const content = document.getElementById('content');
+		const expandBtn = document.getElementById('expandBtn');
+		const modalOverlay = document.getElementById('modalOverlay');
+		const modalClose = document.getElementById('modalClose');
+		const modalSetup = document.getElementById('modalSetup');
+		const modalTests = document.getElementById('modalTests');
+		const modalOutput = document.getElementById('modalOutput');
 		
 		let currentTests = '';
+		let currentOutput = '';
 		let editor = null;
 		let editor1 = null;
 		let editor2 = null;
@@ -355,6 +527,49 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			vscode.postMessage({ type: 'run', content: code });
 		}
 
+		function openModal() {
+			// Populate modal with current content
+			if (editor1 && editor2) {
+				modalSetup.querySelector('code').textContent = getEditorText(editor1);
+				modalTests.querySelector('code').textContent = getEditorText(editor2);
+				hljs.highlightElement(modalSetup.querySelector('code'));
+				hljs.highlightElement(modalTests.querySelector('code'));
+			} else if (editor) {
+				modalSetup.querySelector('code').textContent = '';
+				modalTests.querySelector('code').textContent = getEditorText(editor);
+				hljs.highlightElement(modalTests.querySelector('code'));
+			}
+			
+			// Copy output
+			const outputContent = document.getElementById('outputContent');
+			if (outputContent && currentOutput) {
+				modalOutput.innerHTML = currentOutput;
+			} else {
+				modalOutput.textContent = 'No output yet. Run tests to see results.';
+			}
+			
+			modalOverlay.classList.add('visible');
+		}
+
+		function closeModal() {
+			modalOverlay.classList.remove('visible');
+		}
+
+		expandBtn.addEventListener('click', openModal);
+		modalClose.addEventListener('click', closeModal);
+		modalOverlay.addEventListener('click', (e) => {
+			if (e.target === modalOverlay) {
+				closeModal();
+			}
+		});
+		
+		// Close modal with Escape key
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && modalOverlay.classList.contains('visible')) {
+				closeModal();
+			}
+		});
+
 		window.addEventListener('message', event => {
 			const message = event.data;
 			
@@ -366,8 +581,10 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 						editor1 = null;
 						editor2 = null;
 						runBtn = null;
+						expandBtn.style.display = 'none';
 					} else {
 						currentTests = message.tests;
+						expandBtn.style.display = 'block';
 						
 						// Check if content should be split
 						const splitMarker = '// Test Scenarios';
@@ -506,14 +723,17 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 					editor1 = null;
 					editor2 = null;
 					runBtn = null;
+					expandBtn.style.display = 'none';
 					break;
 				case 'clear':
 					content.innerHTML = '<div class="welcome"><h3>Test Playground</h3><p>Select code in your editor and right-click to generate demonstrative tests.</p></div>';
 					currentTests = '';
+					currentOutput = '';
 					editor = null;
 					editor1 = null;
 					editor2 = null;
 					runBtn = null;
+					expandBtn.style.display = 'none';
 					break;
 				case 'runningTests':
 					const outputContent = document.getElementById('outputContent');
@@ -528,9 +748,12 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 						if (message.error) {
 							outContent.className = 'output-content visible error';
 							outContent.textContent = 'Error: ' + message.error;
+							currentOutput = '<span style="color: #f48771;">Error: ' + escapeHtml(message.error) + '</span>';
 						} else {
 							outContent.className = 'output-content visible';
-							outContent.innerHTML = formatOutput(message.output);
+							const formatted = formatOutput(message.output);
+							outContent.innerHTML = formatted;
+							currentOutput = formatted;
 						}
 					}
 					break;
