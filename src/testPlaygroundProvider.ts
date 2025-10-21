@@ -255,8 +255,14 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			letter-spacing: 0.5px;
 			color: var(--vscode-descriptionForeground);
 		}
-		.split-section .code-editor {
+		.split-section:first-of-type .code-editor {
+			max-height: 200px;
 			min-height: 150px;
+		}
+		.split-section:nth-of-type(2) .code-editor {
+			height: 100px;
+			min-height: 100px;
+			max-height: 100px;
 		}
 		.output-section {
 			display: none;
@@ -289,7 +295,8 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 			font-size: 13px;
 			line-height: 1.6;
-			max-height: 400px;
+			height: 200px;
+			max-height: 200px;
 			overflow-y: auto;
 			white-space: pre-wrap;
 			word-wrap: break-word;
