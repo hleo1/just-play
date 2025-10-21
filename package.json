@@ -1,0 +1,107 @@
+{
+  "name": "just-play",
+  "displayName": "Just Play",
+  "description": "Generate demonstrative tests for your code using AI",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Education"
+  ],
+  "activationEvents": [
+    "onView:just-play.testPlayground"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "just-play-sidebar",
+          "title": "Just Play",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "just-play-sidebar": [
+        {
+          "type": "webview",
+          "id": "just-play.testPlayground",
+          "name": "Test Playground"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "just-play.generateTests",
+        "title": "Generate Tests",
+        "category": "Just Play"
+      },
+      {
+        "command": "just-play.clearPlayground",
+        "title": "Clear Playground",
+        "category": "Just Play"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorHasSelection",
+          "command": "just-play.generateTests",
+          "group": "1_modification"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Just Play",
+      "properties": {
+        "just-play.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key for generating tests",
+          "order": 1
+        },
+        "just-play.model": {
+          "type": "string",
+          "default": "claude-3-5-haiku-20241022",
+          "enum": [
+            "claude-3-5-haiku-20241022",
+            "claude-3-haiku-20240307",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-opus-20240229"
+          ],
+          "description": "Claude model to use for test generation (Haiku is fastest)",
+          "order": 2
+        },
+        "just-play.includeContext": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include surrounding code context when generating tests",
+          "order": 3
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.0",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2"
+  }
+}
