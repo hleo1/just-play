@@ -59,28 +59,58 @@ console.log("Game 2 Initial State:", game2);`;
 	try {
 		const anthropic = new Anthropic({ apiKey });
 
-		const fullCode = includeContext ? `${context}\n\n${code}` : code;
+		let prompt: string;
+		
+		if (includeContext && context.trim()) {
+			// Separate selected code from context to make it crystal clear what to test
+			prompt = `You are generating tests for ONLY the selected code block below.
 
-		const prompt = `Generate a self-contained, runnable test file for this code:
+CONTEXT (for reference only - DO NOT test or copy this):
+\`\`\`typescript
+${context}
+\`\`\`
+
+SELECTED CODE TO TEST (test ONLY this):
+\`\`\`typescript
+${code}
+\`\`\`
+
+CRITICAL RULES:
+1. Test ONLY the selected code above - nothing from the context
+2. Copy the SELECTED code EXACTLY at the top of your output
+3. Use context only to understand types/imports - do not copy or test context code
+4. Add 2-3 simple test examples showing how the SELECTED code works
+5. Use console.log() for output - NO test framework imports
+6. Must run with: bun file.ts (zero dependencies)
+
+Output Format:
+- First: Copy the selected code being tested
+- Then: Comment "// Test Scenarios"
+- Then: 2-3 test calls with console.log showing inputs → outputs
+
+Output only executable code. No markdown, no explanations.`;
+		} else {
+			// No context - just test the selected code
+			prompt = `Generate a self-contained, runnable test file for the selected code below:
 
 \`\`\`typescript
-${fullCode}
+${code}
 \`\`\`
 
 Rules:
 1. Copy the selected code EXACTLY at the top
-2. Only add minimal code needed to make it runnable (e.g., missing variables/types)
+2. Add any minimal imports/types needed to make it runnable
 3. Add 2-3 simple test examples showing how the code works
 4. Use console.log() for output - NO test framework imports
 5. Must run with: bun file.ts (zero dependencies)
 
-Format:
-- First: the code being tested
-- Insert a comment: // Test Scenarios
+Output Format:
+- First: The code being tested
+- Then: Comment "// Test Scenarios"  
 - Then: 2-3 test calls with console.log showing inputs → outputs
-- Keep it minimal and demonstrative
 
 Output only executable code. No markdown, no explanations.`;
+		}
 
 		const message = await anthropic.messages.create({
 			model,

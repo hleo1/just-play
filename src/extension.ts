@@ -55,10 +55,60 @@ export function activate(context: vscode.ExtensionContext) {
 
 			let contextText = '';
 			if (includeContext) {
-				// Get imports and code before selection
+				// Get code before selection and filter to relevant context
 				const documentStart = new vscode.Position(0, 0);
 				const beforeRange = new vscode.Range(documentStart, selection.start);
-				contextText = editor.document.getText(beforeRange);
+				const fullContext = editor.document.getText(beforeRange);
+				
+				// Extract only imports, types, interfaces, and class/function signatures
+				// This prevents the AI from seeing unrelated function implementations
+				const lines = fullContext.split('\n');
+				const relevantLines: string[] = [];
+				let inMultilineComment = false;
+				let braceDepth = 0;
+				let captureUntilBraceClose = false;
+				
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i];
+					const trimmed = line.trim();
+					
+					// Track multiline comments
+					if (trimmed.includes('/*')) inMultilineComment = true;
+					if (trimmed.includes('*/')) {
+						inMultilineComment = false;
+						continue;
+					}
+					if (inMultilineComment) continue;
+					
+					// Always include: imports, exports, type/interface definitions
+					if (
+						trimmed.startsWith('import ') ||
+						trimmed.startsWith('export type ') ||
+						trimmed.startsWith('export interface ') ||
+						trimmed.startsWith('type ') ||
+						trimmed.startsWith('interface ') ||
+						trimmed.startsWith('enum ') ||
+						trimmed.startsWith('export enum ') ||
+						trimmed.startsWith('const ') && trimmed.includes(':') && !trimmed.includes('=') // type annotations only
+					) {
+						relevantLines.push(line);
+						// Track if we need to capture until closing brace for interface/type
+						if (trimmed.includes('{') && !trimmed.includes('}')) {
+							captureUntilBraceClose = true;
+							braceDepth = 1;
+						}
+					} else if (captureUntilBraceClose) {
+						// Continue capturing multiline type/interface definitions
+						relevantLines.push(line);
+						braceDepth += (line.match(/{/g) || []).length;
+						braceDepth -= (line.match(/}/g) || []).length;
+						if (braceDepth === 0) {
+							captureUntilBraceClose = false;
+						}
+					}
+				}
+				
+				contextText = relevantLines.join('\n');
 			}
 
 			// Show loading state
