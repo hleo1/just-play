@@ -150,20 +150,15 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			flex-direction: column;
 			height: 100%;
 		}
-		.header {
-			display: flex;
-			gap: 8px;
-			margin-bottom: 12px;
-			flex-wrap: wrap;
-		}
 		button {
 			background-color: var(--vscode-button-background);
 			color: var(--vscode-button-foreground);
 			border: none;
-			padding: 6px 12px;
+			padding: 4px 10px;
 			cursor: pointer;
 			border-radius: 2px;
-			font-size: 13px;
+			font-size: 11px;
+			font-weight: 600;
 		}
 		button:hover:not(:disabled) {
 			background-color: var(--vscode-button-hoverBackground);
@@ -171,13 +166,6 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		button:disabled {
 			opacity: 0.5;
 			cursor: not-allowed;
-		}
-		button.primary {
-			background-color: var(--vscode-button-background);
-		}
-		button.secondary {
-			background-color: var(--vscode-button-secondaryBackground);
-			color: var(--vscode-button-secondaryForeground);
 		}
 		.content {
 			flex: 1;
@@ -265,10 +253,7 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			max-height: 100px;
 		}
 		.output-section {
-			display: none;
-		}
-		.output-section.visible {
-			display: block;
+			margin-top: 12px;
 		}
 		.output-header {
 			font-weight: 600;
@@ -281,10 +266,14 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			align-items: center;
 			gap: 8px;
 		}
-		.output-header::before {
+		.output-header-text {
+			flex: 0 0 auto;
+		}
+		.output-header-text::before {
 			content: '▶';
 			font-size: 10px;
 			color: #6a9955;
+			margin-right: 6px;
 		}
 		.output-content {
 			background-color: #282c34;
@@ -300,6 +289,10 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			overflow-y: auto;
 			white-space: pre-wrap;
 			word-wrap: break-word;
+			display: none;
+		}
+		.output-content.visible {
+			display: block;
 		}
 		.output-content .hljs {
 			background: transparent !important;
@@ -327,11 +320,6 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
 	<div class="container">
-		<div class="header">
-			<button id="runBtn" class="primary" disabled>▶ Run Tests</button>
-			<button id="copyBtn" class="secondary" disabled>Copy</button>
-			<button id="clearBtn" class="secondary" disabled>Clear</button>
-		</div>
 		<div class="content" id="content">
 			<div class="welcome">
 				<h3>Test Playground</h3>
@@ -344,20 +332,18 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 	<script>
 		const vscode = acquireVsCodeApi();
 		const content = document.getElementById('content');
-		const copyBtn = document.getElementById('copyBtn');
-		const clearBtn = document.getElementById('clearBtn');
-		const runBtn = document.getElementById('runBtn');
 		
 		let currentTests = '';
 		let editor = null;
 		let editor1 = null;
 		let editor2 = null;
+		let runBtn = null;
 
 		function getEditorText(ed) {
 			return ed.textContent || '';
 		}
 
-		runBtn.addEventListener('click', () => {
+		function runTests() {
 			let code;
 			if (editor1 && editor2) {
 				code = getEditorText(editor1) + '\\n\\n// Test Scenarios\\n' + getEditorText(editor2);
@@ -367,23 +353,7 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 				code = currentTests;
 			}
 			vscode.postMessage({ type: 'run', content: code });
-		});
-
-		copyBtn.addEventListener('click', () => {
-			let code;
-			if (editor1 && editor2) {
-				code = getEditorText(editor1) + '\\n\\n// Test Scenarios\\n' + getEditorText(editor2);
-			} else if (editor) {
-				code = getEditorText(editor);
-			} else {
-				code = currentTests;
-			}
-			vscode.postMessage({ type: 'copy', content: code });
-		});
-
-		clearBtn.addEventListener('click', () => {
-			vscode.postMessage({ type: 'clear' });
-		});
+		}
 
 		window.addEventListener('message', event => {
 			const message = event.data;
@@ -392,12 +362,10 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 				case 'updateTests':
 					if (message.isLoading) {
 						content.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generating tests...</p></div>';
-						copyBtn.disabled = true;
-						clearBtn.disabled = true;
-						runBtn.disabled = true;
 						editor = null;
 						editor1 = null;
 						editor2 = null;
+						runBtn = null;
 					} else {
 						currentTests = message.tests;
 						
@@ -413,7 +381,7 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 							content.innerHTML = 
 								'<div class="editor">' +
 								'<div class="split-section">' +
-								'<div class="section-label">Setup</div>' +
+								'<div class="section-label">Code to Test, with AI Modifications</div>' +
 								'<pre class="code-editor language-typescript" id="editor1" contenteditable="true" spellcheck="false"><code class="language-typescript"></code></pre>' +
 								'</div>' +
 								'<div class="split-section">' +
@@ -421,18 +389,24 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 								'<pre class="code-editor language-typescript" id="editor2" contenteditable="true" spellcheck="false"><code class="language-typescript"></code></pre>' +
 								'</div>' +
 								'<div class="output-section" id="outputSection">' +
-								'<div class="output-header">Output</div>' +
+								'<div class="output-header">' +
+								'<span class="output-header-text">Output</span>' +
+								'<button id="runBtn">▶ Run Tests</button>' +
+								'</div>' +
 								'<div class="output-content" id="outputContent"></div>' +
 								'</div>' +
 								'</div>';
 							
 							editor1 = document.getElementById('editor1');
 							editor2 = document.getElementById('editor2');
+							runBtn = document.getElementById('runBtn');
 							editor1.querySelector('code').textContent = part1;
 							editor2.querySelector('code').textContent = part2;
 							hljs.highlightElement(editor1.querySelector('code'));
 							hljs.highlightElement(editor2.querySelector('code'));
 							editor = null;
+							
+							runBtn.addEventListener('click', runTests);
 							
 							// Setup syntax highlighting on input
 							function setupEditor(ed) {
@@ -476,15 +450,21 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 								'<div class="editor">' +
 								'<pre class="code-editor language-typescript" id="editor" contenteditable="true" spellcheck="false"><code class="language-typescript"></code></pre>' +
 								'<div class="output-section" id="outputSection">' +
-								'<div class="output-header">Output</div>' +
+								'<div class="output-header">' +
+								'<span class="output-header-text">Output</span>' +
+								'<button id="runBtn">▶ Run Tests</button>' +
+								'</div>' +
 								'<div class="output-content" id="outputContent"></div>' +
 								'</div>' +
 								'</div>';
 							editor = document.getElementById('editor');
+							runBtn = document.getElementById('runBtn');
 							editor.querySelector('code').textContent = message.tests;
 							hljs.highlightElement(editor.querySelector('code'));
 							editor1 = null;
 							editor2 = null;
+							
+							runBtn.addEventListener('click', runTests);
 							
 							// Setup syntax highlighting on input
 							editor.addEventListener('input', () => {
@@ -518,48 +498,38 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 								}
 							});
 						}
-						
-						copyBtn.disabled = false;
-						clearBtn.disabled = false;
-						runBtn.disabled = false;
 					}
 					break;
 				case 'showError':
 					content.innerHTML = '<div class="error">' + escapeHtml(message.error) + '</div>';
-					copyBtn.disabled = true;
-					clearBtn.disabled = false;
-					runBtn.disabled = true;
 					editor = null;
+					editor1 = null;
+					editor2 = null;
+					runBtn = null;
 					break;
 				case 'clear':
 					content.innerHTML = '<div class="welcome"><h3>Test Playground</h3><p>Select code in your editor and right-click to generate demonstrative tests.</p></div>';
 					currentTests = '';
-					copyBtn.disabled = true;
-					clearBtn.disabled = true;
-					runBtn.disabled = true;
 					editor = null;
 					editor1 = null;
 					editor2 = null;
+					runBtn = null;
 					break;
 				case 'runningTests':
-					const outputSection = document.getElementById('outputSection');
 					const outputContent = document.getElementById('outputContent');
-					if (outputSection && outputContent) {
-						outputSection.classList.add('visible');
-						outputContent.className = 'output-content';
+					if (outputContent) {
+						outputContent.className = 'output-content visible';
 						outputContent.textContent = 'Running tests...';
 					}
 					break;
 				case 'testResults':
-					const outSection = document.getElementById('outputSection');
 					const outContent = document.getElementById('outputContent');
-					if (outSection && outContent) {
-						outSection.classList.add('visible');
+					if (outContent) {
 						if (message.error) {
-							outContent.className = 'output-content error';
+							outContent.className = 'output-content visible error';
 							outContent.textContent = 'Error: ' + message.error;
 						} else {
-							outContent.className = 'output-content';
+							outContent.className = 'output-content visible';
 							outContent.innerHTML = formatOutput(message.output);
 						}
 					}
