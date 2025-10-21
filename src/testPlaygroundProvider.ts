@@ -132,7 +132,7 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Test Playground</title>
-	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" rel="stylesheet" />
 	<style>
 		* {
 			box-sizing: border-box;
@@ -216,8 +216,8 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		.code-editor {
 			width: 100%;
 			min-height: 200px;
-			background-color: #2d2d2d !important;
-			color: #ccc;
+			background-color: #282c34 !important;
+			color: #abb2bf;
 			border: 1px solid var(--vscode-panel-border);
 			border-radius: 4px;
 			padding: 12px !important;
@@ -236,6 +236,11 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		.code-editor code {
 			font-family: inherit !important;
 			font-size: inherit !important;
+			background: transparent !important;
+		}
+		.hljs {
+			background: transparent !important;
+			padding: 0 !important;
 		}
 		.split-section {
 			display: flex;
@@ -262,28 +267,41 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		.output-header {
 			font-weight: 600;
 			margin-bottom: 8px;
-			color: var(--vscode-foreground);
+			color: #9cdcfe;
 			font-size: 12px;
 			text-transform: uppercase;
 			letter-spacing: 0.5px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+		.output-header::before {
+			content: '▶';
+			font-size: 10px;
+			color: #6a9955;
 		}
 		.output-content {
-			background-color: var(--vscode-terminal-background, #1e1e1e);
-			color: var(--vscode-terminal-foreground, #cccccc);
+			background-color: #282c34;
+			color: #abb2bf;
 			border: 1px solid var(--vscode-panel-border);
 			border-radius: 4px;
 			padding: 12px;
-			font-family: var(--vscode-editor-font-family);
-			font-size: var(--vscode-editor-font-size);
+			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+			font-size: 13px;
 			line-height: 1.6;
+			max-height: 400px;
+			overflow-y: auto;
 			white-space: pre-wrap;
 			word-wrap: break-word;
-			max-height: 300px;
-			overflow-y: auto;
+		}
+		.output-content .hljs {
+			background: transparent !important;
+			padding: 0 !important;
 		}
 		.output-content.error {
-			color: var(--vscode-errorForeground);
-			background-color: var(--vscode-inputValidation-errorBackground);
+			color: #f48771;
+			background-color: #3d1f1f;
+			white-space: pre-wrap;
 		}
 		.spinner {
 			border: 3px solid var(--vscode-progressBar-background);
@@ -405,8 +423,8 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 							editor2 = document.getElementById('editor2');
 							editor1.querySelector('code').textContent = part1;
 							editor2.querySelector('code').textContent = part2;
-							Prism.highlightElement(editor1.querySelector('code'));
-							Prism.highlightElement(editor2.querySelector('code'));
+							hljs.highlightElement(editor1.querySelector('code'));
+							hljs.highlightElement(editor2.querySelector('code'));
 							editor = null;
 							
 							// Setup syntax highlighting on input
@@ -419,7 +437,7 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 									const startOffset = range ? range.startOffset : 0;
 									
 									code.textContent = text;
-									Prism.highlightElement(code);
+									hljs.highlightElement(code);
 									
 									// Restore cursor position
 									if (range) {
@@ -457,7 +475,7 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 								'</div>';
 							editor = document.getElementById('editor');
 							editor.querySelector('code').textContent = message.tests;
-							Prism.highlightElement(editor.querySelector('code'));
+							hljs.highlightElement(editor.querySelector('code'));
 							editor1 = null;
 							editor2 = null;
 							
@@ -470,7 +488,7 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 								const startOffset = range ? range.startOffset : 0;
 								
 								code.textContent = text;
-								Prism.highlightElement(code);
+								hljs.highlightElement(code);
 								
 								// Restore cursor position
 								if (range) {
@@ -535,7 +553,7 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 							outContent.textContent = 'Error: ' + message.error;
 						} else {
 							outContent.className = 'output-content';
-							outContent.textContent = message.output;
+							outContent.innerHTML = formatOutput(message.output);
 						}
 					}
 					break;
@@ -547,10 +565,19 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			div.textContent = text;
 			return div.innerHTML;
 		}
+
+		function formatOutput(text) {
+			// Use highlight.js for syntax highlighting
+			try {
+				const highlighted = hljs.highlight(text, { language: 'javascript' }).value;
+				return highlighted;
+			} catch (e) {
+				// Fallback: just escape and return
+				return escapeHtml(text);
+			}
+		}
 	</script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </body>
 </html>`;
 	}
