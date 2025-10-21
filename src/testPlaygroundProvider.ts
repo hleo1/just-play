@@ -32,6 +32,9 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 				case 'run':
 					this.runTests(data.content);
 					break;
+				case 'expand':
+					this.openExpandedView(data.setup, data.tests, data.output);
+					break;
 			}
 		});
 	}
@@ -64,6 +67,38 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			});
 		}
 	}
+
+	private openExpandedView(setup: string, tests: string, output: string) {
+		// Close any existing expanded view
+		if (this._expandedPanel) {
+			this._expandedPanel.dispose();
+		}
+
+		// Create a new panel that takes over the active column
+		const panel = vscode.window.createWebviewPanel(
+			'justPlayExpanded',
+			'Test Playground - Expanded',
+			{
+				viewColumn: vscode.ViewColumn.Active,
+				preserveFocus: false
+			},
+			{
+				enableScripts: true,
+				retainContextWhenHidden: true
+			}
+		);
+
+		this._expandedPanel = panel;
+
+		panel.webview.html = this._getExpandedViewHtml(setup, tests, output);
+
+		// Clean up when panel is closed
+		panel.onDidDispose(() => {
+			this._expandedPanel = undefined;
+		});
+	}
+
+	private _expandedPanel: vscode.WebviewPanel | undefined;
 
 	private async runTests(code: string) {
 		const fs = require('fs');
@@ -333,126 +368,6 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			0% { transform: rotate(0deg); }
 			100% { transform: rotate(360deg); }
 		}
-		/* Modal styles */
-		.modal-overlay {
-			display: none;
-			position: fixed;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background-color: rgba(0, 0, 0, 0.7);
-			z-index: 1000;
-			padding: 20px;
-		}
-		.modal-overlay.visible {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-		}
-		.modal-content {
-			background-color: var(--vscode-editor-background);
-			border: 1px solid var(--vscode-panel-border);
-			border-radius: 6px;
-			width: 95%;
-			height: 90%;
-			display: flex;
-			flex-direction: column;
-			overflow: hidden;
-		}
-		.modal-header {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			padding: 12px 16px;
-			border-bottom: 1px solid var(--vscode-panel-border);
-		}
-		.modal-title {
-			font-size: 14px;
-			font-weight: 600;
-			color: var(--vscode-foreground);
-		}
-		.modal-close {
-			background: transparent;
-			border: none;
-			color: var(--vscode-foreground);
-			font-size: 20px;
-			cursor: pointer;
-			padding: 0;
-			width: 24px;
-			height: 24px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-		}
-		.modal-close:hover {
-			background-color: var(--vscode-toolbar-hoverBackground);
-			border-radius: 3px;
-		}
-		.modal-body {
-			flex: 1;
-			display: grid;
-			grid-template-columns: 1fr 1fr;
-			gap: 16px;
-			padding: 16px;
-			overflow: hidden;
-		}
-		.modal-column {
-			display: flex;
-			flex-direction: column;
-			gap: 12px;
-			overflow-y: auto;
-		}
-		.modal-section {
-			display: flex;
-			flex-direction: column;
-			gap: 8px;
-		}
-		.modal-section-label {
-			font-weight: 600;
-			font-size: 12px;
-			text-transform: uppercase;
-			letter-spacing: 0.5px;
-			color: var(--vscode-descriptionForeground);
-		}
-		.modal-code-editor {
-			background-color: #282c34;
-			color: #abb2bf;
-			border: 1px solid var(--vscode-panel-border);
-			border-radius: 4px;
-			padding: 12px;
-			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-			font-size: 13px;
-			line-height: 1.6;
-			overflow: auto;
-			white-space: pre;
-			min-height: 300px;
-		}
-		.modal-code-editor code {
-			background: transparent !important;
-			padding: 0 !important;
-		}
-		.modal-code-editor .hljs {
-			background: transparent !important;
-		}
-		.modal-output {
-			background-color: #282c34;
-			color: #abb2bf;
-			border: 1px solid var(--vscode-panel-border);
-			border-radius: 4px;
-			padding: 12px;
-			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-			font-size: 13px;
-			line-height: 1.6;
-			overflow: auto;
-			white-space: pre-wrap;
-			min-height: 200px;
-			max-height: 400px;
-		}
-		.modal-output .hljs {
-			background: transparent !important;
-			padding: 0 !important;
-		}
 	</style>
 </head>
 <body>
@@ -467,42 +382,10 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		</div>
 	</div>
 
-	<div class="modal-overlay" id="modalOverlay">
-		<div class="modal-content">
-			<div class="modal-header">
-				<div class="modal-title">Expanded View</div>
-				<button class="modal-close" id="modalClose">×</button>
-			</div>
-			<div class="modal-body">
-				<div class="modal-column">
-					<div class="modal-section">
-						<div class="modal-section-label">Code to Test, with AI Modifications</div>
-						<pre class="modal-code-editor" id="modalSetup"><code class="language-typescript"></code></pre>
-					</div>
-				</div>
-				<div class="modal-column">
-					<div class="modal-section">
-						<div class="modal-section-label">Test Scenarios</div>
-						<pre class="modal-code-editor" id="modalTests"><code class="language-typescript"></code></pre>
-					</div>
-					<div class="modal-section">
-						<div class="modal-section-label">Output</div>
-						<div class="modal-output" id="modalOutput"></div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-
 	<script>
 		const vscode = acquireVsCodeApi();
 		const content = document.getElementById('content');
 		const expandBtn = document.getElementById('expandBtn');
-		const modalOverlay = document.getElementById('modalOverlay');
-		const modalClose = document.getElementById('modalClose');
-		const modalSetup = document.getElementById('modalSetup');
-		const modalTests = document.getElementById('modalTests');
-		const modalOutput = document.getElementById('modalOutput');
 		
 		let currentTests = '';
 		let currentOutput = '';
@@ -528,47 +411,26 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		}
 
 		function openModal() {
-			// Populate modal with current content
+			// Send message to extension to open full-screen panel
+			let setup = '';
+			let tests = '';
+			
 			if (editor1 && editor2) {
-				modalSetup.querySelector('code').textContent = getEditorText(editor1);
-				modalTests.querySelector('code').textContent = getEditorText(editor2);
-				hljs.highlightElement(modalSetup.querySelector('code'));
-				hljs.highlightElement(modalTests.querySelector('code'));
+				setup = getEditorText(editor1);
+				tests = getEditorText(editor2);
 			} else if (editor) {
-				modalSetup.querySelector('code').textContent = '';
-				modalTests.querySelector('code').textContent = getEditorText(editor);
-				hljs.highlightElement(modalTests.querySelector('code'));
+				tests = getEditorText(editor);
 			}
 			
-			// Copy output
-			const outputContent = document.getElementById('outputContent');
-			if (outputContent && currentOutput) {
-				modalOutput.innerHTML = currentOutput;
-			} else {
-				modalOutput.textContent = 'No output yet. Run tests to see results.';
-			}
-			
-			modalOverlay.classList.add('visible');
-		}
-
-		function closeModal() {
-			modalOverlay.classList.remove('visible');
+			vscode.postMessage({
+				type: 'expand',
+				setup: setup,
+				tests: tests,
+				output: currentOutput || 'No output yet. Run tests to see results.'
+			});
 		}
 
 		expandBtn.addEventListener('click', openModal);
-		modalClose.addEventListener('click', closeModal);
-		modalOverlay.addEventListener('click', (e) => {
-			if (e.target === modalOverlay) {
-				closeModal();
-			}
-		});
-		
-		// Close modal with Escape key
-		document.addEventListener('keydown', (e) => {
-			if (e.key === 'Escape' && modalOverlay.classList.contains('visible')) {
-				closeModal();
-			}
-		});
 
 		window.addEventListener('message', event => {
 			const message = event.data;
@@ -780,6 +642,163 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </body>
 </html>`;
+	}
+
+	private _getExpandedViewHtml(setup: string, tests: string, output: string): string {
+		return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Test Playground - Expanded</title>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" rel="stylesheet" />
+	<style>
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+		body {
+			font-family: var(--vscode-font-family);
+			font-size: var(--vscode-font-size);
+			color: var(--vscode-foreground);
+			background-color: var(--vscode-editor-background);
+			height: 100vh;
+			overflow: hidden;
+		}
+		.expanded-container {
+			display: flex;
+			flex-direction: column;
+			height: 100vh;
+		}
+		.expanded-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 16px 24px;
+			border-bottom: 1px solid var(--vscode-panel-border);
+			background-color: var(--vscode-sideBar-background);
+		}
+		.expanded-title {
+			font-size: 16px;
+			font-weight: 600;
+			color: var(--vscode-foreground);
+		}
+		.expanded-body {
+			flex: 1;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 24px;
+			padding: 24px;
+			overflow: hidden;
+		}
+		.expanded-column {
+			display: flex;
+			flex-direction: column;
+			gap: 16px;
+			overflow-y: auto;
+		}
+		.expanded-section {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+		.expanded-section.flex-grow {
+			flex: 1;
+			min-height: 0;
+		}
+		.expanded-section-label {
+			font-weight: 600;
+			font-size: 13px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: var(--vscode-descriptionForeground);
+		}
+		.expanded-code {
+			background-color: #282c34;
+			color: #abb2bf;
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 4px;
+			padding: 16px;
+			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+			font-size: 14px;
+			line-height: 1.6;
+			overflow: auto;
+			white-space: pre;
+			flex: 1;
+			min-height: 0;
+		}
+		.expanded-code code {
+			background: transparent !important;
+			padding: 0 !important;
+		}
+		.expanded-code .hljs {
+			background: transparent !important;
+		}
+		.expanded-output {
+			background-color: #282c34;
+			color: #abb2bf;
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 4px;
+			padding: 16px;
+			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+			font-size: 14px;
+			line-height: 1.6;
+			overflow: auto;
+			white-space: pre-wrap;
+			flex: 0 0 auto;
+			min-height: 250px;
+			max-height: 40%;
+		}
+		.expanded-output .hljs {
+			background: transparent !important;
+			padding: 0 !important;
+		}
+	</style>
+</head>
+<body>
+	<div class="expanded-container">
+		<div class="expanded-header">
+			<div class="expanded-title">Test Playground - Expanded View</div>
+		</div>
+		<div class="expanded-body">
+			<div class="expanded-column">
+				<div class="expanded-section flex-grow">
+					<div class="expanded-section-label">Code to Test, with AI Modifications</div>
+					<pre class="expanded-code"><code class="language-typescript">${this._escapeHtml(setup)}</code></pre>
+				</div>
+			</div>
+			<div class="expanded-column">
+				<div class="expanded-section flex-grow">
+					<div class="expanded-section-label">Test Scenarios</div>
+					<pre class="expanded-code"><code class="language-typescript">${this._escapeHtml(tests)}</code></pre>
+				</div>
+				<div class="expanded-section">
+					<div class="expanded-section-label">Output</div>
+					<div class="expanded-output">${output}</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+	<script>
+		// Apply syntax highlighting
+		document.querySelectorAll('pre code').forEach((block) => {
+			hljs.highlightElement(block);
+		});
+	</script>
+</body>
+</html>`;
+	}
+
+	private _escapeHtml(text: string): string {
+		return text
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#039;');
 	}
 }
 
