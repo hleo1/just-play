@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { TestPlaygroundProvider } from './testPlaygroundProvider';
-import { generateTests } from './aiService';
+import { generateTests, analyzeRepository } from './aiService';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
@@ -133,7 +133,27 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	context.subscriptions.push(generateTestsCmd, clearPlaygroundCmd);
+	// Register analyze repository command
+	const analyzeRepositoryCmd = vscode.commands.registerCommand(
+		'just-play.analyzeRepository',
+		async () => {
+			console.log('Analyze Repository command triggered!');
+			
+			// Show loading state
+			provider.updateRepositoryAnalysis('', true);
+
+			// Analyze repository
+			const result = await analyzeRepository();
+
+			if (result.error) {
+				provider.showAnalysisError(result.error);
+			} else {
+				provider.updateRepositoryAnalysis(result.analysis, false);
+			}
+		}
+	);
+
+	context.subscriptions.push(generateTestsCmd, clearPlaygroundCmd, analyzeRepositoryCmd);
 }
 
 export function deactivate() {}

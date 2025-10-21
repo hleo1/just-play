@@ -43,6 +43,11 @@
         "command": "just-play.clearPlayground",
         "title": "Clear Playground",
         "category": "Just Play"
+      },
+      {
+        "command": "just-play.analyzeRepository",
+        "title": "Analyze Repository",
+        "category": "Just Play"
       }
     ],
     "menus": {

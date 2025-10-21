@@ -35,6 +35,9 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 				case 'expand':
 					this.openExpandedView(data.setup, data.tests, data.output);
 					break;
+				case 'analyzeRepository':
+					vscode.commands.executeCommand('just-play.analyzeRepository');
+					break;
 			}
 		});
 	}
@@ -64,6 +67,27 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		if (this._view) {
 			this._view.webview.postMessage({
 				type: 'clear'
+			});
+		}
+	}
+
+	public updateRepositoryAnalysis(analysis: string, isLoading: boolean = false) {
+		if (this._view) {
+			this._view.show?.(true);
+			this._view.webview.postMessage({
+				type: 'updateAnalysis',
+				analysis,
+				isLoading
+			});
+		}
+	}
+
+	public showAnalysisError(error: string) {
+		if (this._view) {
+			this._view.show?.(true);
+			this._view.webview.postMessage({
+				type: 'showAnalysisError',
+				error
 			});
 		}
 	}
@@ -368,11 +392,78 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 			0% { transform: rotate(0deg); }
 			100% { transform: rotate(360deg); }
 		}
+		.repo-analysis-section {
+			margin-bottom: 20px;
+			padding: 12px;
+			background-color: var(--vscode-editor-background);
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 4px;
+		}
+		.repo-analysis-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 12px;
+		}
+		.repo-analysis-title {
+			font-weight: 600;
+			font-size: 13px;
+			color: var(--vscode-foreground);
+		}
+		.analyze-btn {
+			background-color: var(--vscode-button-background);
+			color: var(--vscode-button-foreground);
+			border: none;
+			padding: 6px 14px;
+			cursor: pointer;
+			border-radius: 2px;
+			font-size: 12px;
+			font-weight: 600;
+		}
+		.analyze-btn:hover:not(:disabled) {
+			background-color: var(--vscode-button-hoverBackground);
+		}
+		.analyze-btn:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+		.repo-analysis-display {
+			max-height: 300px;
+			overflow-y: auto;
+			background-color: #282c34;
+			color: #abb2bf;
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 4px;
+			padding: 12px;
+			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+			font-size: 12px;
+			line-height: 1.5;
+			white-space: pre-wrap;
+			word-wrap: break-word;
+			display: none;
+		}
+		.repo-analysis-display.visible {
+			display: block;
+		}
+		.repo-analysis-display.error {
+			color: #f48771;
+			background-color: #3d1f1f;
+		}
 	</style>
 </head>
 <body>
 	<div class="container">
 		<button class="expand-btn" id="expandBtn" style="display: none;">⤢ Expand</button>
+		
+		<!-- Repository Analysis Section -->
+		<div class="repo-analysis-section">
+			<div class="repo-analysis-header">
+				<span class="repo-analysis-title">Repository Analysis</span>
+				<button class="analyze-btn" id="analyzeBtn">Analyze Repository</button>
+			</div>
+			<div class="repo-analysis-display" id="analysisDisplay"></div>
+		</div>
+
 		<div class="content" id="content">
 			<div class="welcome">
 				<h3>Test Playground</h3>
@@ -386,6 +477,8 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		const vscode = acquireVsCodeApi();
 		const content = document.getElementById('content');
 		const expandBtn = document.getElementById('expandBtn');
+		const analyzeBtn = document.getElementById('analyzeBtn');
+		const analysisDisplay = document.getElementById('analysisDisplay');
 		
 		let currentTests = '';
 		let currentOutput = '';
@@ -431,6 +524,10 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 		}
 
 		expandBtn.addEventListener('click', openModal);
+
+		analyzeBtn.addEventListener('click', () => {
+			vscode.postMessage({ type: 'analyzeRepository' });
+		});
 
 		window.addEventListener('message', event => {
 			const message = event.data;
@@ -618,6 +715,34 @@ export class TestPlaygroundProvider implements vscode.WebviewViewProvider {
 							currentOutput = formatted;
 						}
 					}
+					break;
+				case 'updateAnalysis':
+					if (message.isLoading) {
+						analysisDisplay.className = 'repo-analysis-display visible';
+						analysisDisplay.innerHTML = '<div class="spinner"></div><p>Analyzing repository...</p>';
+						analyzeBtn.disabled = true;
+						analyzeBtn.textContent = 'Analyzing...';
+					} else {
+						analysisDisplay.className = 'repo-analysis-display visible';
+						// Try to format as JSON with syntax highlighting
+						try {
+							const parsed = JSON.parse(message.analysis);
+							const formatted = JSON.stringify(parsed, null, 2);
+							analysisDisplay.innerHTML = '<code class="language-json">' + escapeHtml(formatted) + '</code>';
+							hljs.highlightElement(analysisDisplay.querySelector('code'));
+						} catch (e) {
+							// If not JSON, just display as text
+							analysisDisplay.textContent = message.analysis;
+						}
+						analyzeBtn.disabled = false;
+						analyzeBtn.textContent = 'Analyze Repository';
+					}
+					break;
+				case 'showAnalysisError':
+					analysisDisplay.className = 'repo-analysis-display visible error';
+					analysisDisplay.textContent = 'Error: ' + message.error;
+					analyzeBtn.disabled = false;
+					analyzeBtn.textContent = 'Analyze Repository';
 					break;
 			}
 		});
