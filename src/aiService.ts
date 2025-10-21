@@ -11,6 +11,39 @@ export async function generateTests(
 	context: string,
 	includeContext: boolean
 ): Promise<TestGenerationResult> {
+	// Check if testingDisplay is enabled
+	if (process.env.testingDisplay === 'true' || process.env.testingDisplay === 'True') {
+		const testCode = `type Player = "X" | "O"
+type Cell = Player | undefined;
+
+export class GameState {
+    id: number;
+    playerTurn: Player;
+    board: Cell[];
+    gameDone: boolean;
+    winner: Cell;
+    tie: boolean;
+
+    constructor(id: number, playerTurn: Player = "X") {
+        this.id = id;
+        this.playerTurn = playerTurn;
+        this.board = new Array(9).fill(undefined);
+        this.gameDone = false;
+        this.winner = undefined;
+        this.tie = false;
+    }
+}
+
+// Test Scenarios
+const game1 = new GameState(1);
+console.log("Game 1 Initial State:", game1);
+
+const game2 = new GameState(2, "O");
+console.log("Game 2 Initial State:", game2);`;
+
+		return { tests: testCode };
+	}
+
 	const config = vscode.workspace.getConfiguration('just-play');
 	// Try environment variable first, then fall back to VS Code settings
 	const apiKey = process.env.ANTHROPIC_API_KEY || config.get<string>('apiKey');
